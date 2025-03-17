@@ -5,6 +5,7 @@ local CompletionPreview = {
   ns_id = vim.api.nvim_create_namespace("supermaven"),
   suggestion_group = "Comment",
   disable_inline_completion = false,
+  current_line_only = false,
 }
 
 CompletionPreview.__index = CompletionPreview
@@ -79,7 +80,9 @@ function CompletionPreview:render_standard(first_line, other_lines, opts, buf)
   if first_line ~= "" then
     opts.virt_text = { { first_line, self.suggestion_group } }
   end
-  if #other_lines > 0 then
+  
+  -- Only add virtual lines if current_line_only is false
+  if #other_lines > 0 and not self.current_line_only then
     opts.virt_lines = other_lines
   end
 
@@ -175,6 +178,48 @@ function CompletionPreview.on_accept_suggestion_word()
   CompletionPreview.on_accept_suggestion(true)
 end
 
+function CompletionPreview.on_accept_suggestion_line()
+  local inlay_instance = CompletionPreview:get_inlay_instance()
+  if inlay_instance == nil then
+    return nil
+  end
+  
+  local completion_text = inlay_instance.completion_text
+  local prior_delete = inlay_instance.prior_delete
+  CompletionPreview:dispose_inlay()
+  
+  if completion_text ~= nil then
+    -- Extract just the first line of the completion text
+    local first_line = completion_text:match("^[^\n]*")
+    
+    local range = {
+      start = {
+        line = vim.api.nvim_win_get_cursor(0)[1] - 1,
+        character = math.max(vim.api.nvim_win_get_cursor(0)[2] - prior_delete, 0),
+      },
+      ["end"] = {
+        line = vim.api.nvim_win_get_cursor(0)[1] - 1,
+        character = vim.fn.col("$"),
+      },
+    }
+    
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Space><Left><Del>", true, false, true), "n", false)
+    vim.lsp.util.apply_text_edits(
+      { { range = range, newText = first_line } },
+      vim.api.nvim_get_current_buf(),
+      "utf-8"
+    )
+    
+    local new_cursor_pos = { 
+      vim.api.nvim_win_get_cursor(0)[1], 
+      vim.api.nvim_win_get_cursor(0)[2] + #first_line + 1 
+    }
+    vim.api.nvim_win_set_cursor(0, new_cursor_pos)
+  else
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", true)
+  end
+end
+
 function CompletionPreview.on_dispose_inlay()
   CompletionPreview:dispose_inlay()
 end
@@ -185,6 +230,22 @@ function CompletionPreview.has_suggestion()
     and inlay_instance.is_active
     and inlay_instance.completion_text ~= nil
     and inlay_instance.completion_text ~= ""
+end
+
+-- Debug function to log the state of inlay hints
+function CompletionPreview.debug_state()
+  print("CompletionPreview State:")
+  print("  disable_inline_completion:", CompletionPreview.disable_inline_completion)
+  print("  current_line_only:", CompletionPreview.current_line_only)
+  
+  local inlay_instance = CompletionPreview:get_inlay_instance()
+  print("  has_inlay_instance:", inlay_instance ~= nil)
+  
+  if inlay_instance then
+    print("  inlay_instance.is_active:", inlay_instance.is_active)
+    print("  inlay_instance.is_floating:", inlay_instance.is_floating)
+    print("  inlay_instance.completion_text:", inlay_instance.completion_text ~= nil)
+  end
 end
 
 return CompletionPreview

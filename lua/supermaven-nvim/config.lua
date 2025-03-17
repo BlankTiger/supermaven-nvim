@@ -1,11 +1,13 @@
 local default_config = {
   keymaps = {
-    accept_suggestion = "<Tab>",
+    accept_suggestion = "<C-Tab>",
     clear_suggestion = "<C-]>",
     accept_word = "<C-j>",
+    accept_line = "<Tab>",
   },
   ignore_filetypes = {},
   disable_inline_completion = false,
+  current_line_only = false,
   disable_keymaps = false,
   condition = function()
     return false

@@ -9,9 +9,11 @@ local M = {}
 M.setup = function(args)
   config.setup(args)
 
-  if config.disable_inline_completion then
-    completion_preview.disable_inline_completion = true
-  elseif not config.disable_keymaps then
+  -- Set the configuration options on the completion_preview module
+  completion_preview.disable_inline_completion = config.disable_inline_completion
+  completion_preview.current_line_only = config.current_line_only
+  
+  if not config.disable_keymaps then
     if config.keymaps.accept_suggestion ~= nil then
       local accept_suggestion_key = config.keymaps.accept_suggestion
       vim.keymap.set(
@@ -29,6 +31,16 @@ M.setup = function(args)
         accept_word_key,
         completion_preview.on_accept_suggestion_word,
         { noremap = true, silent = true }
+      )
+    end
+
+    if config.keymaps.accept_line ~= nil then
+      local accept_line_key = config.keymaps.accept_line
+      vim.keymap.set(
+        "i",
+        accept_line_key,
+        completion_preview.on_accept_suggestion_line,
+        { noremap = true, silent = false }
       )
     end
 
@@ -53,6 +65,31 @@ M.setup = function(args)
   end
 
   api.start()
+end
+
+-- Debug function to manually test key mappings
+M.test_keymap = function()
+  print("Testing keymaps...")
+  print("Testing accept_line function directly:")
+  completion_preview.on_accept_suggestion_line()
+  
+  print("Mapping <C-l> explicitly:")
+  vim.keymap.set("i", "<C-l>", function()
+    print("C-l pressed!")
+    completion_preview.on_accept_suggestion_line()
+  end, { noremap = true, silent = false })
+end
+
+-- Debug function to show configuration values
+M.debug_config = function()
+  print("Supermaven Configuration:")
+  print("  disable_inline_completion:", config.disable_inline_completion)
+  print("  current_line_only:", config.current_line_only)
+  print("  disable_keymaps:", config.disable_keymaps)
+  
+  print("CompletionPreview State:")
+  print("  disable_inline_completion:", completion_preview.disable_inline_completion)
+  print("  current_line_only:", completion_preview.current_line_only)
 end
 
 return M
